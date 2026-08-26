@@ -53,33 +53,39 @@ const runPiVersion = (settings: PiSettings, environment: NodeJS.ProcessEnv) =>
     );
   });
 
-export const discoverPiModels = Effect.fn("discoverPiModels")(
-  function* (settings: PiSettings, cwd: string, environment: NodeJS.ProcessEnv) {
-    const transport = yield* makePiRpcTransport({
-      binaryPath: binaryPath(settings),
-      args: ["--mode", "rpc", "--no-session"],
-      cwd,
-      env: environment,
-      onExit: Effect.void,
-    });
-    const response = yield* transport.request(
-      { type: "get_available_models" },
-      "pi-provider-models",
-      DISCOVERY_TIMEOUT_MS,
-    );
-    return extractAvailableModels(response).map((model, index) =>
-      piModelInfoToServerModel(model, index === 0),
-    );
-  },
-  Effect.scoped,
-  Effect.timeoutOption(DISCOVERY_TIMEOUT_MS),
-  Effect.map(Option.getOrElse(() => [] as ReadonlyArray<ServerProviderModel>)),
-  Effect.catchCause((cause) =>
-    Effect.logWarning("pi.provider.model-discovery-failed", { cause }).pipe(
-      Effect.as([] as ReadonlyArray<ServerProviderModel>),
+export const discoverPiModels = Effect.fn("discoverPiModels")(function* (
+  settings: PiSettings,
+  cwd: string,
+  environment: NodeJS.ProcessEnv,
+) {
+  return yield* Effect.scoped(
+    Effect.gen(function* () {
+      const transport = yield* makePiRpcTransport({
+        binaryPath: binaryPath(settings),
+        args: ["--mode", "rpc", "--no-session"],
+        cwd,
+        env: environment,
+        onExit: Effect.void,
+      });
+      const response = yield* transport.request(
+        { type: "get_available_models" },
+        "pi-provider-models",
+        DISCOVERY_TIMEOUT_MS,
+      );
+      return extractAvailableModels(response).map((model, index) =>
+        piModelInfoToServerModel(model, index === 0),
+      );
+    }),
+  ).pipe(
+    Effect.timeoutOption(DISCOVERY_TIMEOUT_MS),
+    Effect.map(Option.getOrElse(() => [] as ReadonlyArray<ServerProviderModel>)),
+    Effect.catchCause((cause) =>
+      Effect.logWarning("pi.provider.model-discovery-failed", { cause }).pipe(
+        Effect.as([] as ReadonlyArray<ServerProviderModel>),
+      ),
     ),
-  ),
-);
+  );
+});
 
 export const makePendingPiProvider = Effect.fn("makePendingPiProvider")(function* (
   settings: PiSettings,
