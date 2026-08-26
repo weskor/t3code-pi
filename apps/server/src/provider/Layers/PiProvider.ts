@@ -13,7 +13,6 @@ import { ChildProcess } from "effect/unstable/process";
 import {
   buildServerProvider,
   DEFAULT_TIMEOUT_MS,
-  detailFromResult,
   isCommandMissingCause,
   parseGenericCliVersion,
   spawnAndCollect,
@@ -179,7 +178,7 @@ export const checkPiProviderStatus = Effect.fn("checkPiProviderStatus")(function
         version,
         status: "error",
         auth: { status: "unknown" },
-        message: detailFromResult(result) ?? "Pi CLI returned an error during health check.",
+        message: "Pi CLI is installed but failed to run.",
       },
     });
   }
