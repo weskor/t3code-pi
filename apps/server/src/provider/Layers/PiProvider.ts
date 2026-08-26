@@ -30,7 +30,6 @@ const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 const PRESENTATION = {
   displayName: "Pi",
   badgeLabel: "Early Access",
-  showInteractionModeToggle: true,
 } as const;
 
 const binaryPath = (settings: PiSettings): string => settings.binaryPath || "pi";
