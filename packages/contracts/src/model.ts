@@ -52,17 +52,6 @@ export const ProviderOptionSelection = Schema.Struct({
 });
 export type ProviderOptionSelection = typeof ProviderOptionSelection.Type;
 
-/**
- * Legacy on-disk shape for provider option selections, kept readable by the
- * decoder so we can tolerate stored data written before the v3 array shape.
- *
- * Persisted historically as `{ effort: "max", fastMode: true, ... }` inside
- * `modelSelection.options`. Migration 026 rewrites stored rows to the
- * canonical array shape, but we still see the legacy form in:
- *   - `settings.json` files from older client builds,
- *   - SQLite databases that have not yet run migration 026,
- *   - any future regression that re-introduces the legacy shape.
- */
 const LegacyProviderOptionSelectionsObject = Schema.Record(Schema.String, Schema.Unknown);
 
 const ProviderOptionSelectionsFromLegacyObject = LegacyProviderOptionSelectionsObject.pipe(
@@ -75,18 +64,6 @@ const ProviderOptionSelectionsFromLegacyObject = LegacyProviderOptionSelectionsO
   ),
 );
 
-/**
- * Schema for the `options` field of every `ModelSelection` variant.
- *
- * Accepts both:
- *   - the canonical array shape `Array<{ id, value }>` (preferred), and
- *   - the legacy object shape `Record<string, string | boolean | …>` from
- *     pre-migration data.
- *
- * Always normalizes to the canonical array on decode and re-encodes as the
- * canonical array, so any legacy storage gets cleaned up the next time the
- * containing record is written back.
- */
 export const ProviderOptionSelections = Schema.Union([
   Schema.Array(ProviderOptionSelection),
   ProviderOptionSelectionsFromLegacyObject,
@@ -106,8 +83,6 @@ function coerceLegacyOptionsObjectToArray(
     } else if (typeof rawValue === "boolean") {
       entries.push({ id, value: rawValue });
     }
-    // Drop anything else (numbers, null, nested objects/arrays) to match the
-    // permissive normalization performed by migration 026.
   }
   return entries;
 }
@@ -116,9 +91,7 @@ function canonicalSelectionsToLegacyObject(
   selections: ReadonlyArray<ProviderOptionSelection>,
 ): Record<string, string | boolean> {
   const out: Record<string, string | boolean> = {};
-  for (const { id, value } of selections) {
-    out[id] = value;
-  }
+  for (const { id, value } of selections) out[id] = value;
   return out;
 }
 
@@ -132,14 +105,10 @@ const CLAUDE_DRIVER_KIND = ProviderDriverKind.make("claudeAgent");
 const CURSOR_DRIVER_KIND = ProviderDriverKind.make("cursor");
 const GROK_DRIVER_KIND = ProviderDriverKind.make("grok");
 const OPENCODE_DRIVER_KIND = ProviderDriverKind.make("opencode");
+const PI_DRIVER_KIND = ProviderDriverKind.make("pi");
 
 export const DEFAULT_MODEL = "gpt-5.6-sol";
 
-/**
- * Codex default-model preference, most preferred first. The provider snapshot
- * marks the first of these present in the live `model/list` response as
- * default; when none are available, Codex's own `isDefault` flag wins.
- */
 export const PREFERRED_DEFAULT_CODEX_MODELS: ReadonlyArray<string> = [
   "gpt-5.6-sol",
   "gpt-5.6-terra",
@@ -155,7 +124,6 @@ export const DEFAULT_MODEL_BY_PROVIDER: Partial<Record<ProviderDriverKind, strin
   [OPENCODE_DRIVER_KIND]: "openai/gpt-5",
 };
 
-/** Per-provider text generation model defaults. */
 export const DEFAULT_TEXT_GENERATION_MODEL_BY_PROVIDER: Partial<
   Record<ProviderDriverKind, string>
 > = {
@@ -212,9 +180,8 @@ export const MODEL_SLUG_ALIASES_BY_PROVIDER: Partial<
     "opus-4.5": "claude-opus-4-5",
   },
   [OPENCODE_DRIVER_KIND]: {},
+  [PI_DRIVER_KIND]: {},
 };
-
-// ── Provider display names ────────────────────────────────────────────
 
 export const PROVIDER_DISPLAY_NAMES: Partial<Record<ProviderDriverKind, string>> = {
   [CODEX_DRIVER_KIND]: "Codex",
@@ -222,4 +189,5 @@ export const PROVIDER_DISPLAY_NAMES: Partial<Record<ProviderDriverKind, string>>
   [CURSOR_DRIVER_KIND]: "Cursor",
   [GROK_DRIVER_KIND]: "Grok",
   [OPENCODE_DRIVER_KIND]: "OpenCode",
+  [PI_DRIVER_KIND]: "Pi",
 };
